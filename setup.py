@@ -554,8 +554,8 @@ def get_triton_version_suffix():
     return git_sfx + env_sfx
 
 
-# keep it separate for easy substitution
-TRITON_VERSION = "3.7.0" + get_triton_version_suffix()
+# Keep the package metadata version pinned for local compatibility testing.
+TRITON_VERSION = "3.6.0+rocm7.12.0"
 
 # Dynamically define supported Python versions and classifiers
 MIN_PYTHON = (3, 10)
