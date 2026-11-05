@@ -732,7 +732,9 @@ struct BufferLoadOpConversion
       return failure();
     auto loc = op->getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
-    LLVM::AMD::BufferEmitter bufferEmitter(rewriter, loc, targetInfo);
+    LLVM::AMD::BufferEmitter bufferEmitter(
+        rewriter, loc, targetInfo,
+        isa<triton::amdgpu::BufferDescType>(op.getPtr().getType()));
 
     // original values
     Value ptr = op.getPtr();
@@ -845,7 +847,9 @@ struct BufferLoadToLocalOpConversion
       return failure();
     auto loc = op->getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
-    LLVM::AMD::BufferEmitter bufferEmitter(rewriter, loc, targetInfo);
+    LLVM::AMD::BufferEmitter bufferEmitter(
+        rewriter, loc, targetInfo,
+        isa<triton::amdgpu::BufferDescType>(op.getPtr().getType()));
 
     // Original values
     Value ptr = op.getPtr();
@@ -2122,7 +2126,9 @@ struct BufferStoreOpConversion
       return failure();
     auto loc = op->getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
-    LLVM::AMD::BufferEmitter bufferEmitter(rewriter, loc, targetInfo);
+    LLVM::AMD::BufferEmitter bufferEmitter(
+        rewriter, loc, targetInfo,
+        isa<triton::amdgpu::BufferDescType>(op.getPtr().getType()));
 
     // original values
     Value ptr = op.getPtr();

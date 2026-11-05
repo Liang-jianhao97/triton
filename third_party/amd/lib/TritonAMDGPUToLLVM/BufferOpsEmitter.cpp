@@ -31,8 +31,10 @@ bool isZero(Value v) {
 } // namespace
 
 namespace mlir::LLVM::AMD {
-BufferEmitter::BufferEmitter(RewriterBase &rw, Location loc, TargetInfo ti)
-    : rewriter(rw), loc(loc), targetInfo(ti) {}
+BufferEmitter::BufferEmitter(RewriterBase &rw, Location loc, TargetInfo ti,
+                             bool hasBufferDescriptor)
+    : rewriter(rw), loc(loc), targetInfo(ti),
+      hasBufferDescriptor(hasBufferDescriptor) {}
 
 Value BufferEmitter::createResourceDescriptor(Value basePtr, Value numRecords) {
   auto b = TritonLLVMOpBuilder(loc, rewriter);
@@ -290,8 +292,12 @@ void BufferEmitter::fillCommonArgs(Type type, Value rsrcDesc,
   int64_t accessBytes = elementByteWidth;
   if (auto vecTy = dyn_cast<VectorType>(type))
     accessBytes *= vecTy.getNumElements();
-  Value vOffsetOutOfBounds =
-      b.int_val(32, isAtomic ? static_cast<int32_t>(-accessBytes) : -1);
+  // Pointer-based loads and stores use a fixed 2^31 - 2 byte bound. Keep
+  // their old sentinel to preserve offset code generation and register pressure.
+  int32_t outOfBoundsOffset = std::numeric_limits<int32_t>::min();
+  if (hasBufferDescriptor || isAtomic)
+    outOfBoundsOffset = isAtomic ? static_cast<int32_t>(-accessBytes) : -1;
+  Value vOffsetOutOfBounds = b.int_val(32, outOfBoundsOffset);
   // Please note: the index passed is not in bytes, but in number of elements
   // In order to pass the index to the buffer operation, we need to convert in
   // bytes (i.e., we need to multiply by `elementByteWidth`)

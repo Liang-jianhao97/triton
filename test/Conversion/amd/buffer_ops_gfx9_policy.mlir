@@ -67,3 +67,40 @@ module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 1 : i32, "ttg.thr
     tt.return
   }
 }
+
+// -----
+
+#blocked = #ttg.blocked<{sizePerThread = [1], threadsPerWarp = [64], warpsPerCTA = [1], order = [0]}>
+module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 1 : i32, "ttg.threads-per-warp" = 64 : i32} {
+  // CHECK-LABEL: buffer_pointer_mask
+  tt.func @buffer_pointer_mask(%base: !tt.ptr<f32>, %offsets: tensor<64xi32, #blocked>, %mask: tensor<64xi1, #blocked>, %n: i32) {
+    // CHECK: %[[LOAD_OOB:.*]] = llvm.mlir.constant(-2147483648 : i32) : i32
+    // CHECK: %[[LOAD_OFFSET:.*]] = llvm.select %{{.*}}, %{{.*}}, %[[LOAD_OOB]] : i1, i32
+    // CHECK: rocdl.raw.ptr.buffer.load %{{.*}}, %[[LOAD_OFFSET]], %{{.*}}, 0 : f32
+    %x = amdg.buffer_load %base[%offsets], %mask : !tt.ptr<f32> -> tensor<64xf32, #blocked>
+    // CHECK: %[[STORE_OOB:.*]] = llvm.mlir.constant(-2147483648 : i32) : i32
+    // CHECK: %[[STORE_OFFSET:.*]] = llvm.select %{{.*}}, %{{.*}}, %[[STORE_OOB]] : i1, i32
+    // CHECK: rocdl.raw.ptr.buffer.store %{{.*}}, %{{.*}}, %[[STORE_OFFSET]], %{{.*}}, 0 : f32
+    amdg.buffer_store %x, %base[%offsets], %mask : !tt.ptr<f32> -> tensor<64xf32, #blocked>
+    tt.return
+  }
+}
+
+// -----
+
+#blocked = #ttg.blocked<{sizePerThread = [1], threadsPerWarp = [64], warpsPerCTA = [1], order = [0]}>
+module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 1 : i32, "ttg.threads-per-warp" = 64 : i32} {
+  // CHECK-LABEL: buffer_descriptor_mask
+  tt.func @buffer_descriptor_mask(%base: !tt.ptr<f32>, %offsets: tensor<64xi32, #blocked>, %mask: tensor<64xi1, #blocked>, %n: i32) {
+    %ptr = amdg.make_buffer_desc %base, %n : !tt.ptr<f32> -> !amdg.buffer_desc<f32>
+    // CHECK: %[[LOAD_OOB:.*]] = llvm.mlir.constant(-1 : i32) : i32
+    // CHECK: %[[LOAD_OFFSET:.*]] = llvm.select %{{.*}}, %{{.*}}, %[[LOAD_OOB]] : i1, i32
+    // CHECK: rocdl.raw.ptr.buffer.load %{{.*}}, %[[LOAD_OFFSET]], %{{.*}}, 0 : f32
+    %x = amdg.buffer_load %ptr[%offsets], %mask : !amdg.buffer_desc<f32> -> tensor<64xf32, #blocked>
+    // CHECK: %[[STORE_OOB:.*]] = llvm.mlir.constant(-1 : i32) : i32
+    // CHECK: %[[STORE_OFFSET:.*]] = llvm.select %{{.*}}, %{{.*}}, %[[STORE_OOB]] : i1, i32
+    // CHECK: rocdl.raw.ptr.buffer.store %{{.*}}, %{{.*}}, %[[STORE_OFFSET]], %{{.*}}, 0 : f32
+    amdg.buffer_store %x, %ptr[%offsets], %mask : !amdg.buffer_desc<f32> -> tensor<64xf32, #blocked>
+    tt.return
+  }
+}
